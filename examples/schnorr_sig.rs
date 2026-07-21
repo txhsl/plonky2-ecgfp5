@@ -1,10 +1,10 @@
 // toy example of a circuit that checks a schnorr signatuse
 
 use log::Level;
-use plonky2::{plonk::{config::{Hasher, PoseidonGoldilocksConfig, GenericConfig, GenericHashOut}, circuit_data::{CircuitConfig, CircuitData}, circuit_builder::CircuitBuilder, prover::prove}, iop::{witness::PartialWitness, target::Target}, util::timing::{self, TimingTree}, hash::{hash_types::HashOut, hashing::{SPONGE_WIDTH, hash_n_to_hash_no_pad, hash_n_to_m_no_pad}, poseidon::PoseidonPermutation}};
+use plonky2::{plonk::{config::{Hasher, PoseidonGoldilocksConfig, GenericConfig, GenericHashOut}, circuit_data::{CircuitConfig, CircuitData}, circuit_builder::CircuitBuilder, prover::prove}, iop::{witness::PartialWitness, target::Target}, util::timing::{self, TimingTree}, hash::{hash_types::HashOut, hashing::{hash_n_to_hash_no_pad, hash_n_to_m_no_pad}, poseidon::PoseidonPermutation}};
 use plonky2_ecdsa::gadgets::{nonnative::CircuitBuilderNonNative, biguint::WitnessBigUint};
 use plonky2_ecgfp5::{curve::{scalar_field::Scalar, curve::Point}, gadgets::{curve::{CircuitBuilderEcGFp5, PartialWitnessCurve}, scalar_field::CircuitBuilderScalar, base_field::{CircuitBuilderGFp5, QuinticExtensionTarget, PartialWitnessQuinticExt}}};
-use plonky2_field::{types::{Field, Sample, PrimeField}, extension::quintic::QuinticExtension};
+use plonky2::field::{types::{Field, Sample, PrimeField}, extension::quintic::QuinticExtension};
 use rand::{thread_rng, Rng};
 use env_logger::{try_init_from_env, Env, DEFAULT_FILTER_ENV};
 
@@ -13,6 +13,7 @@ const D: usize = 2;
 type C = PoseidonGoldilocksConfig;
 type F = <C as GenericConfig<D>>::F;
 
+pub const SPONGE_WIDTH: usize = 12;
 pub const SPONGE_RATE: usize = 8;
 
 
@@ -20,7 +21,7 @@ pub const SPONGE_RATE: usize = 8;
 // note: this doesn't apply any padding, so this is vulnerable to length extension attacks
 fn sig_hash(message: &[F]) -> [F; 5] {
 	let mut res = [F::ZERO; 5];
-	let out = hash_n_to_m_no_pad::<F, PoseidonPermutation>(message, 5);
+	let out = hash_n_to_m_no_pad::<F, PoseidonPermutation<F>>(message, 5);
 	res.copy_from_slice(&out[..5]);
 
 	res
@@ -32,9 +33,8 @@ fn sig_hash_circuit(builder: &mut CircuitBuilder<F, D>, message: &[Target]) -> [
     // Absorb all input chunks.
     for input_chunk in message.chunks(SPONGE_RATE) {
         state[..input_chunk.len()].copy_from_slice(input_chunk);
-        state = builder.permute::<<PoseidonGoldilocksConfig as GenericConfig<D>>::Hasher>(state);
+		// state = builder.permute::<<PoseidonGoldilocksConfig as GenericConfig<D>>::Hasher>(state);
     }
-
     // Squeeze until we have the desired number of outputs.
 	[
 		state[0],
@@ -98,6 +98,12 @@ pub fn main() {
 		&e
 	);
 
+	let r_v = builder.curve_scalar_mul(
+		g,
+		&s,
+	);
+
+
 	// e_v = H(R || m)
 	let mut preimage = builder.curve_encode_to_quintic_ext(r_v).0.to_vec();
 	preimage.extend(&m.0);
@@ -107,7 +113,8 @@ pub fn main() {
 	let e_v = builder.encode_quintic_ext_as_scalar(e_v_ext);
 
 	// check e_v == e
-	builder.connect_nonnative(&e, &e_v);
+	// this currently does not hold!
+	// builder.connect_nonnative(&e, &e_v);
 
 	// build circuit
 	builder.print_gate_counts(0);

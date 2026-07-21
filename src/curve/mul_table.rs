@@ -1,5 +1,5 @@
 use super::curve::AffinePoint;
-use plonky2_field::{extension::quintic::QuinticExtension, goldilocks_field::GoldilocksField};
+use plonky2::field::{extension::quintic::QuinticExtension, goldilocks_field::GoldilocksField};
 
 pub(crate) const MUL_TABLE_G0: [AffinePoint; 16] = [
     AffinePoint {
@@ -2072,7 +2072,7 @@ mod tests {
     use super::*;
     use crate::curve::{curve::Point, scalar_field::Scalar};
     use num::{BigUint, FromPrimitive};
-    use plonky2_field::types::{Field, PrimeField64};
+    use plonky2::field::types::{Field, PrimeField64};
 
     // For k = 40*j (j = 0 to 7), constant Gk[] is an array of 16 points in
     // affine coordinates, with Gk[i] = (i+1)*(2^k)*G for the conventional

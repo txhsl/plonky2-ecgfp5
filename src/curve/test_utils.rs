@@ -2,7 +2,7 @@ use super::{
     base_field::{Sgn0, SquareRoot},
     GFp, GFp5,
 };
-use plonky2_field::{extension::quintic::QuinticExtension, types::Sample};
+use plonky2::field::{extension::quintic::QuinticExtension, types::Sample};
 use rand::thread_rng;
 
 pub fn gfp5_random_non_square() -> GFp5 {

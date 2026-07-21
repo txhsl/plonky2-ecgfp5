@@ -1,5 +1,5 @@
 use plonky2::hash::hash_types::RichField;
-use plonky2_field::{
+use plonky2::field::{
     extension::{quintic::QuinticExtension, Extendable, FieldExtension, Frobenius},
     ops::Square,
     types::{Field, PrimeField},
@@ -16,7 +16,7 @@ impl Legendre<GFp> for QuinticExtension<GFp> {
         let frob1 = self.frobenius();
         let frob2 = frob1.frobenius();
 
-        let frob1_times_frob2 = frob1 * frob2;
+        let frob1_times_frob2: GFp5 = (frob1 * frob2).into();
         let frob2_frob1_times_frob2 = frob1_times_frob2.repeated_frobenius(2);
 
         let xr_ext = *self * frob1_times_frob2 * frob2_frob1_times_frob2;
@@ -120,7 +120,7 @@ pub(crate) fn sqrt_quintic_ext_goldilocks(x: GFp5) -> Option<GFp5> {
 
 #[cfg(test)]
 mod tests {
-    use plonky2_field::types::Sample;
+    use plonky2::field::types::Sample;
     use rand::thread_rng;
 
     use crate::curve::test_utils::gfp5_random_non_square;

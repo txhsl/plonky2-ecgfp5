@@ -3,7 +3,7 @@
 /// with some modifications to make it play more nicely with plonky2 primitives
 /// His implementation can be found here: https://github.com/pornin/ecgfp5
 use alloc::vec::Vec;
-use plonky2_field::extension::quintic::QuinticExtension;
+use plonky2::field::extension::quintic::QuinticExtension;
 use rand::RngCore;
 use core::fmt::{self, Debug, Display, Formatter};
 use core::hash::{Hash, Hasher};
@@ -15,7 +15,7 @@ use num::bigint::BigUint;
 use num::One;
 use serde::{Deserialize, Serialize};
 
-use plonky2_field::types::{Field, PrimeField, Sample, PrimeField64};
+use plonky2::field::types::{Field, PrimeField, Sample, PrimeField64};
 
 use super::GFp5;
 
@@ -220,6 +220,14 @@ impl Field for Scalar {
     #[inline]
     fn from_noncanonical_u96(n: (u64, u32)) -> Self {
         Self([n.0, n.1 as u64, 0, 0, 0])
+    }
+    
+    fn from_noncanonical_u64(_n: u64) -> Self {
+        todo!()
+    }
+    
+    fn from_noncanonical_i64(_n: i64) -> Self {
+        todo!()
     }
 }
 

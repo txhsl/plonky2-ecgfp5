@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion, BatchSize};
 use plonky2_ecgfp5::curve::scalar_field::Scalar;
-use plonky2_field::{types::{Sample, Field}, ops::Square};
+use plonky2::field::{types::{Sample, Field}, ops::Square};
 
 pub fn bench_scalar(c: &mut Criterion) {
     c.bench_function(

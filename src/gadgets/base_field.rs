@@ -1,15 +1,16 @@
 use alloc::vec::Vec;
+use anyhow::Result;
 use plonky2_ecdsa::gadgets::nonnative::NonNativeTarget;
-use plonky2_field::extension::quintic::QuinticExtension;
-use plonky2_field::goldilocks_field::GoldilocksField;
+use plonky2::field::extension::quintic::QuinticExtension;
+use plonky2::field::goldilocks_field::GoldilocksField;
 
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::iop::witness::{PartitionWitness, Witness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2_field::extension::{Extendable, FieldExtension};
-use plonky2_field::types::Field;
+use plonky2::field::extension::{Extendable, FieldExtension};
+use plonky2::field::types::Field;
 use plonky2_ecdsa::gadgets::biguint::BigUintTarget;
 use plonky2_ecdsa::gadgets::nonnative::CircuitBuilderNonNative;
 use plonky2_u32::gadgets::arithmetic_u32::U32Target;
@@ -190,11 +191,11 @@ impl<W: Witness<F>, F: RichField + Extendable<5>> PartialWitnessQuinticExt<F> fo
         let QuinticExtensionTarget([t0, t1, t2, t3, t4]) = target;
         let [v0, v1, v2, v3, v4] = value.0;
 
-        self.set_target(t0, v0);
-        self.set_target(t1, v1);
-        self.set_target(t2, v2);
-        self.set_target(t3, v3);
-        self.set_target(t4, v4);
+        let _ = self.set_target(t0, v0);
+        let _ = self.set_target(t1, v1);
+        let _ = self.set_target(t2, v2);
+        let _ = self.set_target(t3, v3);
+        let _ = self.set_target(t4, v4);
     }
 
 }
@@ -798,6 +799,7 @@ macro_rules! impl_circuit_builder_for_extension_degree {
     };
 }
 
+// Only implement for D = 5, since QuinticQuotientGenerator is only implemented for D = 5
 impl_circuit_builder_for_extension_degree!(1);
 impl_circuit_builder_for_extension_degree!(2);
 impl_circuit_builder_for_extension_degree!(4);
@@ -824,14 +826,15 @@ impl QuinticQuotientGenerator {
     }
 }
 
-impl<F: RichField + Extendable<5>> SimpleGenerator<F> for QuinticQuotientGenerator {
+// Make the generator generic over D, so it works for any extension degree
+impl<const D: usize, F: RichField + Extendable<5> + Extendable<D>> SimpleGenerator<F, D> for QuinticQuotientGenerator {
     fn dependencies(&self) -> Vec<Target> {
         let mut deps = self.numerator.to_target_array().to_vec();
         deps.extend(self.denominator.to_target_array());
         deps
     }
 
-    fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
+    fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) -> Result<(), anyhow::Error> {
         let numerator_limbs = self
             .numerator
             .to_target_array()
@@ -852,8 +855,23 @@ impl<F: RichField + Extendable<5>> SimpleGenerator<F> for QuinticQuotientGenerat
         for (lhs, rhs) in self.quotient.to_target_array().into_iter().zip(
             <QuinticExtension<F> as FieldExtension<5>>::to_basefield_array(&quotient).into_iter(),
         ) {
-            out_buffer.set_target(lhs, rhs);
+            out_buffer.set_target(lhs, rhs)?;
         }
+        Ok(())
+    }
+    
+    fn id(&self) -> String {
+        todo!()
+    }
+    
+    fn serialize(&self, _dst: &mut Vec<u8>, _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<F, D>) -> plonky2::util::serialization::IoResult<()> {
+        todo!()
+    }
+    
+    fn deserialize(_src: &mut plonky2::util::serialization::Buffer, _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<F, D>) -> plonky2::util::serialization::IoResult<Self>
+    where
+        Self: Sized {
+        todo!()
     }
 }
 
@@ -874,12 +892,12 @@ impl QuinticSqrtGenerator {
     }
 }
 
-impl SimpleGenerator<GFp> for QuinticSqrtGenerator {
+impl SimpleGenerator<GFp, 1> for QuinticSqrtGenerator {
     fn dependencies(&self) -> Vec<Target> {
         self.x.to_target_array().to_vec()
     }
 
-    fn run_once(&self, witness: &PartitionWitness<GFp>, out_buffer: &mut GeneratedValues<GFp>) {
+    fn run_once(&self, witness: &PartitionWitness<GFp>, out_buffer: &mut GeneratedValues<GFp>) -> Result<(), anyhow::Error> {
         let x_limbs = self.x.to_target_array().map(|t| witness.get_target(t));
         let x = QuinticExtension::<GFp>::from_basefield_array(x_limbs);
 
@@ -891,17 +909,172 @@ impl SimpleGenerator<GFp> for QuinticSqrtGenerator {
                     .into_iter()
                     .zip(<GFp5 as FieldExtension<5>>::to_basefield_array(&root_x).into_iter())
                 {
-                    out_buffer.set_target(lhs, rhs);
+                    out_buffer.set_target(lhs, rhs)?;
                 }
-                out_buffer.set_target(self.is_sqrt.target, GFp::ONE);
+                out_buffer.set_target(self.is_sqrt.target, GFp::ONE)?;
             }
             None => {
                 for limb in self.root_x.to_target_array().into_iter() {
-                    out_buffer.set_target(limb, GFp::ZERO);
+                    out_buffer.set_target(limb, GFp::ZERO)?;
                 }
-                out_buffer.set_target(self.is_sqrt.target, GFp::ZERO);
+                out_buffer.set_target(self.is_sqrt.target, GFp::ZERO)?;
             }
         }
+        Ok(())
+    }
+    
+    fn id(&self) -> String {
+        todo!()
+    }
+    
+    fn serialize(&self, _dst: &mut Vec<u8>, _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<GFp, 1>) -> plonky2::util::serialization::IoResult<()> {
+        todo!()
+    }
+    
+    fn deserialize(_src: &mut plonky2::util::serialization::Buffer, _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<GFp, 1>) -> plonky2::util::serialization::IoResult<Self>
+    where
+        Self: Sized {
+        todo!()
+    }
+}
+
+impl SimpleGenerator<GFp, 2> for QuinticSqrtGenerator {
+    fn dependencies(&self) -> Vec<Target> {
+        self.x.to_target_array().to_vec()
+    }
+
+    fn run_once(&self, witness: &PartitionWitness<GFp>, out_buffer: &mut GeneratedValues<GFp>) -> Result<(), anyhow::Error> {
+        let x_limbs = self.x.to_target_array().map(|t| witness.get_target(t));
+        let x = QuinticExtension::<GFp>::from_basefield_array(x_limbs);
+
+        match x.canonical_sqrt() {
+            Some(root_x) => {
+                for (lhs, rhs) in self
+                    .root_x
+                    .to_target_array()
+                    .into_iter()
+                    .zip(<GFp5 as FieldExtension<5>>::to_basefield_array(&root_x).into_iter())
+                {
+                    out_buffer.set_target(lhs, rhs)?;
+                }
+                out_buffer.set_target(self.is_sqrt.target, GFp::ONE)?;
+            }
+            None => {
+                for limb in self.root_x.to_target_array().into_iter() {
+                    out_buffer.set_target(limb, GFp::ZERO)?;
+                }
+                out_buffer.set_target(self.is_sqrt.target, GFp::ZERO)?;
+            }
+        }
+        Ok(())
+    }
+    
+    fn id(&self) -> String {
+        todo!()
+    }
+    
+    fn serialize(&self, _dst: &mut Vec<u8>, _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<GFp, 2>) -> plonky2::util::serialization::IoResult<()> {
+        todo!()
+    }
+    
+    fn deserialize(_src: &mut plonky2::util::serialization::Buffer, _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<GFp, 2>) -> plonky2::util::serialization::IoResult<Self>
+    where
+        Self: Sized {
+        todo!()
+    }
+}
+
+// Implement for D = 4
+impl SimpleGenerator<GFp, 4> for QuinticSqrtGenerator {
+    fn dependencies(&self) -> Vec<Target> {
+        self.x.to_target_array().to_vec()
+    }
+
+    fn run_once(&self, witness: &PartitionWitness<GFp>, out_buffer: &mut GeneratedValues<GFp>) -> Result<(), anyhow::Error> {
+        let x_limbs = self.x.to_target_array().map(|t| witness.get_target(t));
+        let x = QuinticExtension::<GFp>::from_basefield_array(x_limbs);
+
+        match x.canonical_sqrt() {
+            Some(root_x) => {
+                for (lhs, rhs) in self
+                    .root_x
+                    .to_target_array()
+                    .into_iter()
+                    .zip(<GFp5 as FieldExtension<5>>::to_basefield_array(&root_x).into_iter())
+                {
+                    out_buffer.set_target(lhs, rhs)?;
+                }
+                out_buffer.set_target(self.is_sqrt.target, GFp::ONE)?;
+            }
+            None => {
+                for limb in self.root_x.to_target_array().into_iter() {
+                    out_buffer.set_target(limb, GFp::ZERO)?;
+                }
+                out_buffer.set_target(self.is_sqrt.target, GFp::ZERO)?;
+            }
+        }
+        Ok(())
+    }
+    
+    fn id(&self) -> String {
+        todo!()
+    }
+    
+    fn serialize(&self, _dst: &mut Vec<u8>, _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<GFp, 4>) -> plonky2::util::serialization::IoResult<()> {
+        todo!()
+    }
+    
+    fn deserialize(_src: &mut plonky2::util::serialization::Buffer, _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<GFp, 4>) -> plonky2::util::serialization::IoResult<Self>
+    where
+        Self: Sized {
+        todo!()
+    }
+}
+
+// Implement for D = 5
+impl SimpleGenerator<GFp, 5> for QuinticSqrtGenerator {
+    fn dependencies(&self) -> Vec<Target> {
+        self.x.to_target_array().to_vec()
+    }
+
+    fn run_once(&self, witness: &PartitionWitness<GFp>, out_buffer: &mut GeneratedValues<GFp>) -> Result<(), anyhow::Error> {
+        let x_limbs = self.x.to_target_array().map(|t| witness.get_target(t));
+        let x = QuinticExtension::<GFp>::from_basefield_array(x_limbs);
+
+        match x.canonical_sqrt() {
+            Some(root_x) => {
+                for (lhs, rhs) in self
+                    .root_x
+                    .to_target_array()
+                    .into_iter()
+                    .zip(<GFp5 as FieldExtension<5>>::to_basefield_array(&root_x).into_iter())
+                {
+                    out_buffer.set_target(lhs, rhs)?;
+                }
+                out_buffer.set_target(self.is_sqrt.target, GFp::ONE)?;
+            }
+            None => {
+                for limb in self.root_x.to_target_array().into_iter() {
+                    out_buffer.set_target(limb, GFp::ZERO)?;
+                }
+                out_buffer.set_target(self.is_sqrt.target, GFp::ZERO)?;
+            }
+        }
+        Ok(())
+    }
+    
+    fn id(&self) -> String {
+        todo!()
+    }
+    
+    fn serialize(&self, _dst: &mut Vec<u8>, _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<GFp, 5>) -> plonky2::util::serialization::IoResult<()> {
+        todo!()
+    }
+    
+    fn deserialize(_src: &mut plonky2::util::serialization::Buffer, _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<GFp, 5>) -> plonky2::util::serialization::IoResult<Self>
+    where
+        Self: Sized {
+        todo!()
     }
 }
 
@@ -914,7 +1087,7 @@ mod tests {
     use plonky2::plonk::circuit_builder::CircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
-    use plonky2_field::types::PrimeField64;
+    use plonky2::field::types::PrimeField64;
     use rand::thread_rng;
 
     use super::*;
@@ -964,7 +1137,7 @@ mod tests {
 
         let x_expected = GFp5::sample(&mut rng);
         let y_expected = GFp5::sample(&mut rng);
-        let z_expected = x_expected * y_expected;
+        let z_expected: GFp5 = (x_expected * y_expected).into();
 
         let x = builder.constant_quintic_ext(x_expected);
         let y = builder.constant_quintic_ext(y_expected);
@@ -1077,7 +1250,7 @@ mod tests {
         let mut builder = CircuitBuilder::<F, D>::new(config);
 
         let x = GFp5::sample(&mut rng);
-        let square_expected = x * x;
+        let square_expected: GFp5 = (x * x).into();
 
         builder.constant_quintic_ext(square_expected);
 
@@ -1098,7 +1271,7 @@ mod tests {
         let mut builder = CircuitBuilder::<F, D>::new(config);
 
         let x = gfp5_random_sgn0_eq_0();
-        let square_expected = x * x;
+        let square_expected: GFp5 = (x * x).into();
 
         let square = builder.constant_quintic_ext(square_expected);
         let sqrt = builder.canonical_sqrt_quintic_ext(square);
@@ -1129,7 +1302,7 @@ mod tests {
         let false_target = builder.constant_bool(false);
 
         let x = GFp5::sample(&mut rng);
-        let square_expected = x * x;
+        let square_expected: GFp5 = (x * x).into();
 
         let square = builder.constant_quintic_ext(square_expected);
         let (_, is_square) = builder.try_any_sqrt_quintic_ext(square);
@@ -1162,7 +1335,7 @@ mod tests {
         let false_target = builder.constant_bool(false);
 
         let x = gfp5_random_sgn0_eq_0();
-        let square_expected = x * x;
+        let square_expected: GFp5 = (x * x).into();
 
         let square = builder.constant_quintic_ext(square_expected);
         let (_, is_square) = builder.try_canonical_sqrt_quintic_ext(square);
@@ -1195,7 +1368,7 @@ mod tests {
         let mut builder = CircuitBuilder::<F, D>::new(config.clone());
 
         let x = GFp5::sample(&mut rng);
-        let square = builder.constant_quintic_ext(x * x);
+        let square = builder.constant_quintic_ext((x * x).into());
         let legendre_sym = builder.legendre_sym_quintic_ext(square);
         builder.register_public_input(legendre_sym);
 

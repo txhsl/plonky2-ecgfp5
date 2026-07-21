@@ -5,10 +5,10 @@
 use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 use alloc::vec::Vec;
-use plonky2_field::extension::quintic::QuinticExtension;
-use plonky2_field::goldilocks_field::GoldilocksField;
-use plonky2_field::ops::Square;
-use plonky2_field::types::{Field, Sample};
+use plonky2::field::extension::quintic::QuinticExtension;
+use plonky2::field::goldilocks_field::GoldilocksField;
+use plonky2::field::ops::Square;
+use plonky2::field::types::{Field, Sample};
 use rand::RngCore;
 
 use crate::curve::base_field::{Legendre, SquareRoot};
@@ -105,7 +105,7 @@ impl WeierstrassPoint {
 
         let x = if x1.legendre() == GFp::ONE { x1 } else { x2 };
 
-        let y = -w * x;
+        let y: GFp5 = (-w * x).into();
         let x = if c {
             x + Point::A / GFp5::from_canonical_u16(3)
         } else {
@@ -222,7 +222,7 @@ impl Point {
         // Encoded form is the value w = 1/u. GFpor the neutral (u == 0),
         // the encoded form is 0. Since our inversion over GF(p^5) already
         // yields 0 in that case, there is no need for any special code.
-        self.t * self.u.inverse_or_zero()
+        (self.t * self.u.inverse_or_zero()).into()
     }
 
     /// Test whether a field element can be decoded into a point.
@@ -309,8 +309,8 @@ impl Point {
         let t2 = z1;
         let t3 = u1 * u2;
         let t4 = _t1;
-        let t5 = x1 + x2 * z1;
-        let t6 = u1 + u2 * _t1;
+        let t5 = x1 + (x2 * z1).into();
+        let t6 = u1 + (u2 * _t1).into();
         let t7 = t1 + t2 * Self::B;
         let t8 = t4 * t7;
         let t9 = t3 * (t5 * Self::B_MUL2 + t7.double());
@@ -384,16 +384,16 @@ impl Point {
 
         // cost: n*(2M+5S) + 2M+1S
         let (x0, z0, u0, t0) = (self.x, self.z, self.u, self.t);
-        let mut t1 = z0 * t0;
-        let mut t2 = t1 * t0;
+        let mut t1: GFp5 = (z0 * t0).into();
+        let mut t2: GFp5 = (t1 * t0).into();
         let x1 = t2.square();
-        let z1 = t1 * u0;
+        let z1: GFp5 = (t1 * u0).into();
         let mut t3 = u0.square();
-        let mut w1 = t2 - (x0 + z0).double() * t3;
+        let mut w1 = t2 - ((x0 + z0).double() * t3).into();
         let mut t4 = w1.square();
         let mut t5 = z1.square();
         let mut x = t5.square() * Self::B_MUL16;
-        let mut w = x1.double() - t5 * GFp5::from_canonical_u16(4) - t4;
+        let mut w = x1.double() - (t5 * GFp5::from_canonical_u16(4)).into() - t4;
         let mut z = (w1 + z1).square() - t4 - t5;
 
         for _ in 2..n {
@@ -404,16 +404,16 @@ impl Point {
             t5 = (w + z).square() - t1 - t3;
             z = t5 * ((x + t1).double() - t3);
             x = (t2 * t4) * Self::B_MUL16;
-            w = -t4 - t2 * (Self::B_MUL4 - GFp5::from_canonical_u16(4));
+            w = -t4 - (t2 * (Self::B_MUL4 - GFp5::from_canonical_u16(4))).into();
         }
 
         t1 = w.square();
         t2 = z.square();
         t3 = (w + z).square() - t1 - t2;
         w1 = t1 - (x + t2).double();
-        self.x = t3.square() * Self::B;
+        self.x = (t3.square() * Self::B).into();
         self.z = w1.square();
-        self.u = t3 * w1;
+        self.u = (t3 * w1).into();
         self.t = t1.double() * (t1 - t2.double()) - self.z;
     }
 
@@ -453,7 +453,7 @@ impl Point {
                 // Compute product of all values to invert, and invert it.
                 // We also use the x and u coordinates of the points in the
                 // destination slice to keep track of the partial products.
-                let mut m = src[0].z * src[0].t;
+                let mut m: GFp5 = (src[0].z * src[0].t).into();
                 for i in 1..n {
                     let x = m;
                     m *= src[i].z;
@@ -474,7 +474,7 @@ impl Point {
                 }
                 res[0].u = src[0].u * src[0].z * m;
                 m *= src[0].t;
-                res[0].x = src[0].x * m;
+                res[0].x = (src[0].x * m).into();
 
                 res
             }
@@ -1197,7 +1197,7 @@ impl Eq for Point {}
 
 #[cfg(test)]
 mod tests {
-    use plonky2_field::{
+    use plonky2::field::{
         extension::quintic::QuinticExtension, goldilocks_field::GoldilocksField, types::{Field, Sample},
     };
     use rand::{thread_rng, Rng};
@@ -1389,8 +1389,8 @@ mod tests {
         }
 
         let p2_affine = AffinePoint {
-            x: p2.x * p2.z.inverse_or_zero(),
-            u: p2.u * p2.t.inverse_or_zero(),
+            x: (p2.x * p2.z.inverse_or_zero()).into(),
+            u: (p2.u * p2.t.inverse_or_zero()).into(),
         };
         assert_eq!(p1 + p2_affine, p1 + p2);
     }

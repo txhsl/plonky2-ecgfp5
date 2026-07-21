@@ -1,4 +1,4 @@
-use plonky2_field::{extension::quintic::QuinticExtension, goldilocks_field::GoldilocksField};
+use plonky2::field::{extension::quintic::QuinticExtension, goldilocks_field::GoldilocksField};
 
 pub(crate) type GFp5 = QuinticExtension<GoldilocksField>;
 pub(crate) type GFp = GoldilocksField;
