@@ -1,6 +1,6 @@
 [package]
 name = "plonky2_ecgfp5"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 authors = ["Sebastien La Duca <sladuca777@gmail.com>"]
 readme = "README.md"
@@ -12,9 +12,9 @@ description = "plonky2 gadgets for EcGFp5 curve and base field arithmetic"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-plonky2 = { git = "https://github.com/txhsl/plonky2.git", tag = "v1.1.1", default-features = false }
-plonky2_ecdsa = { git = "https://github.com/txhsl/plonky2-ecdsa.git", tag = "v0.1.2", default-features = false }
-plonky2_u32 = { git = "https://github.com/txhsl/plonky2-u32.git", tag = "v0.1.2", default-features = false }
+plonky2 = { git = "https://github.com/txhsl/plonky2.git", tag = "v1.1.2", default-features = false }
+plonky2_ecdsa = { git = "https://github.com/txhsl/plonky2-ecdsa.git", tag = "v0.1.3", default-features = false }
+plonky2_u32 = { git = "https://github.com/txhsl/plonky2-u32.git", tag = "v0.1.3", default-features = false }
 num = "0.4"
 itertools = "0.10"
 serde = "1"
