@@ -11,6 +11,7 @@ use plonky2::iop::witness::{PartitionWitness, Witness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::types::Field;
+use plonky2::util::serialization::{Buffer, IoError, IoResult, Read, Write};
 use plonky2_ecdsa::gadgets::biguint::BigUintTarget;
 use plonky2_ecdsa::gadgets::nonnative::CircuitBuilderNonNative;
 use plonky2_u32::gadgets::arithmetic_u32::U32Target;
@@ -33,6 +34,18 @@ impl QuinticExtensionTarget {
 
     pub fn to_target_array(&self) -> [Target; 5] {
         self.0
+    }
+
+    #[inline]
+    pub fn read(src: &mut Buffer) -> IoResult<Self> {
+        let limbs = src.read_target_vec()?.try_into().map_err(|_| IoError)?;
+
+        Ok(Self(limbs))
+    }
+
+    #[inline]
+    pub fn write(&self, dst: &mut Vec<u8>) -> IoResult<()> {
+        dst.write_target_vec(&self.0)
     }
 }
 
@@ -861,17 +874,27 @@ impl<const D: usize, F: RichField + Extendable<5> + Extendable<D>> SimpleGenerat
     }
     
     fn id(&self) -> String {
-        todo!()
+        "QuinticQuotientGenerator".to_string()
     }
     
-    fn serialize(&self, _dst: &mut Vec<u8>, _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<F, D>) -> plonky2::util::serialization::IoResult<()> {
-        todo!()
+    fn serialize(&self, dst: &mut Vec<u8>, _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<F, D>) -> plonky2::util::serialization::IoResult<()> {
+        self.numerator.write(dst)?;
+        self.denominator.write(dst)?;
+        self.quotient.write(dst)
     }
     
-    fn deserialize(_src: &mut plonky2::util::serialization::Buffer, _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<F, D>) -> plonky2::util::serialization::IoResult<Self>
+    fn deserialize(src: &mut plonky2::util::serialization::Buffer, _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<F, D>) -> plonky2::util::serialization::IoResult<Self>
     where
         Self: Sized {
-        todo!()
+        let numerator = QuinticExtensionTarget::read(src)?;
+        let denominator = QuinticExtensionTarget::read(src)?;
+        let quotient = QuinticExtensionTarget::read(src)?;
+
+        Ok(Self {
+            numerator,
+            denominator,
+            quotient,
+        })
     }
 }
 
@@ -924,17 +947,27 @@ impl SimpleGenerator<GFp, 1> for QuinticSqrtGenerator {
     }
     
     fn id(&self) -> String {
-        todo!()
+        "QuinticSqrtGenerator".to_string()
     }
     
-    fn serialize(&self, _dst: &mut Vec<u8>, _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<GFp, 1>) -> plonky2::util::serialization::IoResult<()> {
-        todo!()
+    fn serialize(&self, dst: &mut Vec<u8>, _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<GFp, 1>) -> plonky2::util::serialization::IoResult<()> {
+        self.x.write(dst)?;
+        self.root_x.write(dst)?;
+        dst.write_target_bool(self.is_sqrt)
     }
     
-    fn deserialize(_src: &mut plonky2::util::serialization::Buffer, _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<GFp, 1>) -> plonky2::util::serialization::IoResult<Self>
+    fn deserialize(src: &mut plonky2::util::serialization::Buffer, _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<GFp, 1>) -> plonky2::util::serialization::IoResult<Self>
     where
         Self: Sized {
-        todo!()
+        let x = QuinticExtensionTarget::read(src)?;
+        let root_x = QuinticExtensionTarget::read(src)?;
+        let is_sqrt = src.read_target_bool()?;
+
+        Ok(Self {
+            x,
+            root_x,
+            is_sqrt,
+        })
     }
 }
 
@@ -970,17 +1003,27 @@ impl SimpleGenerator<GFp, 2> for QuinticSqrtGenerator {
     }
     
     fn id(&self) -> String {
-        todo!()
+        "QuinticSqrtGenerator".to_string()
     }
     
-    fn serialize(&self, _dst: &mut Vec<u8>, _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<GFp, 2>) -> plonky2::util::serialization::IoResult<()> {
-        todo!()
+    fn serialize(&self, dst: &mut Vec<u8>, _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<GFp, 2>) -> plonky2::util::serialization::IoResult<()> {
+        self.x.write(dst)?;
+        self.root_x.write(dst)?;
+        dst.write_target_bool(self.is_sqrt)
     }
     
-    fn deserialize(_src: &mut plonky2::util::serialization::Buffer, _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<GFp, 2>) -> plonky2::util::serialization::IoResult<Self>
+    fn deserialize(src: &mut plonky2::util::serialization::Buffer, _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<GFp, 2>) -> plonky2::util::serialization::IoResult<Self>
     where
         Self: Sized {
-        todo!()
+        let x = QuinticExtensionTarget::read(src)?;
+        let root_x = QuinticExtensionTarget::read(src)?;
+        let is_sqrt = src.read_target_bool()?;
+
+        Ok(Self {
+            x,
+            root_x,
+            is_sqrt,
+        })
     }
 }
 
@@ -1017,17 +1060,27 @@ impl SimpleGenerator<GFp, 4> for QuinticSqrtGenerator {
     }
     
     fn id(&self) -> String {
-        todo!()
+        "QuinticSqrtGenerator".to_string()
     }
     
-    fn serialize(&self, _dst: &mut Vec<u8>, _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<GFp, 4>) -> plonky2::util::serialization::IoResult<()> {
-        todo!()
+    fn serialize(&self, dst: &mut Vec<u8>, _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<GFp, 4>) -> plonky2::util::serialization::IoResult<()> {
+        self.x.write(dst)?;
+        self.root_x.write(dst)?;
+        dst.write_target_bool(self.is_sqrt)
     }
     
-    fn deserialize(_src: &mut plonky2::util::serialization::Buffer, _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<GFp, 4>) -> plonky2::util::serialization::IoResult<Self>
+    fn deserialize(src: &mut plonky2::util::serialization::Buffer, _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<GFp, 4>) -> plonky2::util::serialization::IoResult<Self>
     where
         Self: Sized {
-        todo!()
+        let x = QuinticExtensionTarget::read(src)?;
+        let root_x = QuinticExtensionTarget::read(src)?;
+        let is_sqrt = src.read_target_bool()?;
+
+        Ok(Self {
+            x,
+            root_x,
+            is_sqrt,
+        })
     }
 }
 
@@ -1064,17 +1117,27 @@ impl SimpleGenerator<GFp, 5> for QuinticSqrtGenerator {
     }
     
     fn id(&self) -> String {
-        todo!()
+        "QuinticSqrtGenerator".to_string()
     }
     
-    fn serialize(&self, _dst: &mut Vec<u8>, _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<GFp, 5>) -> plonky2::util::serialization::IoResult<()> {
-        todo!()
+    fn serialize(&self, dst: &mut Vec<u8>, _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<GFp, 5>) -> plonky2::util::serialization::IoResult<()> {
+        self.x.write(dst)?;
+        self.root_x.write(dst)?;
+        dst.write_target_bool(self.is_sqrt)
     }
     
-    fn deserialize(_src: &mut plonky2::util::serialization::Buffer, _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<GFp, 5>) -> plonky2::util::serialization::IoResult<Self>
+    fn deserialize(src: &mut plonky2::util::serialization::Buffer, _common_data: &plonky2::plonk::circuit_data::CommonCircuitData<GFp, 5>) -> plonky2::util::serialization::IoResult<Self>
     where
         Self: Sized {
-        todo!()
+        let x = QuinticExtensionTarget::read(src)?;
+        let root_x = QuinticExtensionTarget::read(src)?;
+        let is_sqrt = src.read_target_bool()?;
+
+        Ok(Self {
+            x,
+            root_x,
+            is_sqrt,
+        })
     }
 }
 
